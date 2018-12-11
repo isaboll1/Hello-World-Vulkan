@@ -19,10 +19,14 @@ int main(int argc, char** argv) // Equivalent to WinMain, this initializes SDL2
 	SDL_Event event;		//   event handle
 	int WIDTH = 640, HEIGHT = 480;
 
-
 	window = SDL_CreateWindow("Hello Vulkan", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 		WIDTH, HEIGHT, SDL_WINDOW_VULKAN|SDL_WINDOW_ALLOW_HIGHDPI);
-
+	
+	if (window == NULL){
+		SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, SDL_GetError());
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Window Error", SDL_GetError(), NULL);
+		return -1;
+	}
 
 	VK_Renderer renderer = VK_Renderer(window, WIDTH, HEIGHT);    //  vulkan renderer handle
 

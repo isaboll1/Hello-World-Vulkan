@@ -13,7 +13,7 @@
 using namespace std;
 
 class VK_Renderer {
-public: 
+public:
 
 	VkDevice device_context;
 	VkQueue queue;
@@ -56,7 +56,7 @@ private:
 	VkInstance instance;
 	VkSurfaceKHR window_surface;
 	VkSwapchainKHR old_swapchain = nullptr;
-	uint32_t swapchain_buffer_count = 3;
+	uint32_t swapchain_buffer_count = 2;
 	VkSurfaceCapabilitiesKHR surface_caps {};
 	VkFormat depth_buffer_format = VK_FORMAT_UNDEFINED;
 	bool stencil_support = false;
@@ -67,8 +67,8 @@ private:
 	VkPhysicalDeviceMemoryProperties device_memory_info {};
 	vector<const char *> device_extensions {};
 	vector<const char *> instance_layers {};
-	vector<const char *> instance_extensions {};
-	VkDebugReportCallbackCreateInfoEXT debug_create_info;
+	vector<const char *> instance_extensions;
+	VkDebugReportCallbackCreateInfoEXT debug_create_info = {};
 
 	//Functions
 	void GetSDLWindowInfo(SDL_Window * window);
@@ -99,7 +99,7 @@ private:
 	void StartSynchronizations();
 	void EndSynchronizations();
 
-	
+
 #ifdef VK_DEBUG
 	VkDebugReportCallbackEXT debug_report;
 	void SetupDebug();

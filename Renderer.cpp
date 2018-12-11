@@ -5,6 +5,7 @@
 
 VK_Renderer::VK_Renderer(SDL_Window * window, int width, int height)
 {
+	instance_extensions;
 	render_width = width;
 	render_height = height;
 
@@ -36,19 +37,19 @@ VK_Renderer::~VK_Renderer()
 	DestroySurface();
 	DestroyDeviceContext();
 	DestroyInstance();
-	
+
 }
 
 void VK_Renderer::GetSDLWindowInfo(SDL_Window * window) //Get the necessary information from the SDL2 window handle for Vulkan support.
 {
 	uint32_t extension_count = 0;
 	SDL_Vulkan_GetInstanceExtensions(window, &extension_count, NULL);
-	const char **extension_names = new const char*[extension_count];
-	SDL_Vulkan_GetInstanceExtensions(window, &extension_count, extension_names);
-
-	for (int i = 0; i < extension_count; i++) { instance_extensions.push_back(extension_names[i]); }
-	delete[] extension_names;
-
+	vector<const char *> names;
+	instance_extensions.resize(extension_count);
+	if (!SDL_Vulkan_GetInstanceExtensions(window, &extension_count, instance_extensions.data())){
+		SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_ERROR, SDL_GetError());
+		return;
+	}
 	device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 }
 
@@ -61,7 +62,7 @@ void VK_Renderer::InitInstance()
 
 	VkApplicationInfo appInfo = {};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.apiVersion = VK_MAKE_VERSION(1, 0, 13);
+	appInfo.apiVersion = VK_MAKE_VERSION(1, 0, 14);
 	appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 0);
 	appInfo.pApplicationName = "Apparatus Engine";
 
@@ -70,9 +71,9 @@ void VK_Renderer::InitInstance()
 	InstanceInfo.pApplicationInfo = &appInfo;
 	InstanceInfo.enabledLayerCount = instance_layers.size();
 	InstanceInfo.ppEnabledLayerNames = instance_layers.data();
-	InstanceInfo.enabledExtensionCount = instance_extensions.size();
+	InstanceInfo.enabledExtensionCount = 2;
 	InstanceInfo.ppEnabledExtensionNames = instance_extensions.data();
-	InstanceInfo.pNext = &debug_create_info;
+	
 
 	result = vkCreateInstance(&InstanceInfo, nullptr, &instance);
 	if (result != VK_SUCCESS) {
@@ -128,7 +129,7 @@ void VK_Renderer::CreateDeviceContext()
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &family_number, nullptr);
 	vector<VkQueueFamilyProperties> familyProperties(family_number);
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &family_number, familyProperties.data());
-	
+
 	vkGetPhysicalDeviceFeatures(device, &gpu_features);
 
 	bool gr = false;
@@ -171,7 +172,7 @@ void VK_Renderer::CreateDeviceContext()
 
 void VK_Renderer::DestroyDeviceContext()
 {
-	
+
 	vkDestroyDevice(device_context, nullptr);
 	device_context = nullptr;
 }
@@ -179,7 +180,7 @@ void VK_Renderer::DestroyDeviceContext()
 void VK_Renderer::CreateSurface(SDL_Window * window) //Get the window surface (this process usually is platform specific, but with SDL2 we can have it be platform agnostic)
 {
 	SDL_Vulkan_CreateSurface(window, instance, &window_surface);
-	
+
 	VkBool32 WSI_supported = false;
 	result = vkGetPhysicalDeviceSurfaceSupportKHR(device, family_i, window_surface, &WSI_supported);
 	if (!WSI_supported) {
@@ -214,22 +215,28 @@ void VK_Renderer::DestroySurface()
 
 void VK_Renderer::CreateSwapchain() //Initialize the Swapchain Object
 {
-	if (swapchain_buffer_count > surface_caps.maxImageCount) { swapchain_buffer_count = surface_caps.maxImageCount; }
-	else if (swapchain_buffer_count < surface_caps.minImageCount) { swapchain_buffer_count = surface_caps.minImageCount + 1; }
+	if (surface_caps.maxImageCount){
+		if (swapchain_buffer_count > surface_caps.maxImageCount) {
+			swapchain_buffer_count = surface_caps.maxImageCount;
+		}
+		else if (swapchain_buffer_count < surface_caps.minImageCount) {
+			swapchain_buffer_count = surface_caps.minImageCount;
+		}
+	} else swapchain_buffer_count = surface_caps.minImageCount + 1;
 
 	 //present mode is essentially the type of vertical syncronization mode.
-		uint32_t present_mode_count = 0;
-		result = vkGetPhysicalDeviceSurfacePresentModesKHR(device, window_surface, &present_mode_count, nullptr);
-		vector<VkPresentModeKHR> swap_modes(present_mode_count);
-		result = vkGetPhysicalDeviceSurfacePresentModesKHR(device, window_surface, &present_mode_count, swap_modes.data());
-		if (!present_mode_set) {
-			present_mode = VK_PRESENT_MODE_FIFO_KHR;
+	uint32_t present_mode_count = 0;
+	result = vkGetPhysicalDeviceSurfacePresentModesKHR(device, window_surface, &present_mode_count, nullptr);
+	vector<VkPresentModeKHR> swap_modes(present_mode_count);
+	result = vkGetPhysicalDeviceSurfacePresentModesKHR(device, window_surface, &present_mode_count, swap_modes.data());
+	if (!present_mode_set) {
+		present_mode = VK_PRESENT_MODE_FIFO_KHR;
 		for (auto mode : swap_modes) {
 			if (mode == VK_PRESENT_MODE_MAILBOX_KHR) { present_mode = mode; }
 		}
 		present_mode_set = true;
 	}
-	
+
 	VkSwapchainCreateInfoKHR swapchain_info {};
 	swapchain_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	swapchain_info.surface = window_surface;
@@ -426,14 +433,14 @@ void VK_Renderer::CreateRenderPass() //Create the Render Pass Object, which is e
 		//~extra color attachments
 	}
 
-	array<VkSubpassDescription, 1> sub_passes {}; 
+	array<VkSubpassDescription, 1> sub_passes {};
 	{
 		sub_passes[0].flags = 0;
 		sub_passes[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 		sub_passes[0].inputAttachmentCount = 0;
 		sub_passes[0].pInputAttachments = nullptr;
 		sub_passes[0].colorAttachmentCount = sub_pass_color_attachments.size();
-		sub_passes[0].pColorAttachments = sub_pass_color_attachments.data(); 
+		sub_passes[0].pColorAttachments = sub_pass_color_attachments.data();
 		sub_passes[0].pResolveAttachments = nullptr;
 		sub_passes[0].pDepthStencilAttachment = &sub_pass_depth_attachment;
 		sub_passes[0].preserveAttachmentCount = 0;
@@ -520,7 +527,7 @@ void VK_Renderer::PresentStopRendering(vector<VkSemaphore> wait_semaphores)
 	present_info.waitSemaphoreCount = wait_semaphores.size();
 	present_info.pWaitSemaphores = wait_semaphores.data();
 	present_info.swapchainCount = 1;
-	present_info.pSwapchains = &swapchain; 
+	present_info.pSwapchains = &swapchain;
 	present_info.pImageIndices = &active_swapchain_id;
 	present_info.pResults = &present_result;
 
@@ -545,7 +552,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugCall(
 	int32_t                     msg_code,
 	const char*                 layer_prefix,
 	const char*                 msg,
-	void *                      user_data) 
+	void *                      user_data)
 {
 	string stream = msg;
 	/*
@@ -574,7 +581,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugCall(
 	else {
 		return false;
 	}
-	
+
 }
 
 void VK_Renderer::SetupDebug()
