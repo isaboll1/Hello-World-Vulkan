@@ -71,7 +71,7 @@ void VK_Renderer::InitInstance()
 	InstanceInfo.pApplicationInfo = &appInfo;
 	InstanceInfo.enabledLayerCount = instance_layers.size();
 	InstanceInfo.ppEnabledLayerNames = instance_layers.data();
-	InstanceInfo.enabledExtensionCount = 2;
+	InstanceInfo.enabledExtensionCount = instance_extensions.size();
 	InstanceInfo.ppEnabledExtensionNames = instance_extensions.data();
 	
 
@@ -107,6 +107,13 @@ void VK_Renderer::CreateDeviceContext()
 	vkEnumeratePhysicalDevices(instance, &gpu_number, devices.data());
 	device = devices[0];
 
+	//Array used for displaying the Vulkan device type to console
+	const char *device_type[5] = {
+		"VK_PHYSICAL_DEVICE_TYPE_OTHER",
+		"VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU",
+		"VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU",
+		"VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU",
+		"VK_PHYSICAL_DEVICE_TYPE_CPU"};
 
 	//Get The Physical GPU info
 	SDL_memset(&device_properties, 0, sizeof device_properties);
@@ -116,7 +123,7 @@ void VK_Renderer::CreateDeviceContext()
 
 	SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, "Driver Version: %i\n", device_properties.driverVersion);
 	SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, "Device Name: %s\n", device_properties.deviceName);
-	SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, "Device Type: %p\n", device_properties.deviceType);
+	SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, "Device Type: %s\n", device_type[device_properties.deviceType]);
 	SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, "Vulkan Version: %d. %d. %d\n",
 		(device_properties.apiVersion >> 22) & 0x3FF,
 		(device_properties.apiVersion >> 12) & 0x3FF,
@@ -561,7 +568,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugCall(
 	*/
 
 	if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT) {
-		SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, msg );
+		SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, msg);
 		printf("\n");
 		return false;
 	}
