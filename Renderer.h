@@ -60,7 +60,7 @@ private:
 	VkSurfaceCapabilitiesKHR surface_caps {};
 	VkFormat depth_buffer_format = VK_FORMAT_UNDEFINED;
 	bool stencil_support = false;
-	bool present_mode_set = true;
+	bool present_mode_set = false;
 	VkSurfaceFormatKHR surface_format {};
 	VkPhysicalDevice device;
 	VkPhysicalDeviceProperties device_properties {};
