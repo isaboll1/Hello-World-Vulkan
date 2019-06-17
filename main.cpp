@@ -224,7 +224,7 @@ int main(int argc, char** argv) // Equivalent to WinMain, this initializes SDL2
 				break;
 			}
 
-		//Begin Rendering Stage
+		//Acquire the right swapchain to be used for rendering. the swapchain buffer index is used for rendering
 		renderer.AcquireNextSwapchain();
 
 		//Record to Command Buffers
@@ -268,8 +268,7 @@ int main(int argc, char** argv) // Equivalent to WinMain, this initializes SDL2
 		vkCmdEndRenderPass(command_buffers[renderer.active_swapchain_id]);
 		vkEndCommandBuffer(command_buffers[renderer.active_swapchain_id]);
 
-		
-		//End Rendering Stage and Present Swapchain Buffers
+		//Start the rendering stage, and begin the presentation stage for the swapchain when the buffer is finished rendering.
 		renderer.BeginRenderPresent(command_buffers);
 
 	}
