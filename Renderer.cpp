@@ -64,7 +64,7 @@ void VK_Renderer::InitInstance()
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	appInfo.apiVersion = VK_MAKE_VERSION(1, 0, 14);
 	appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 0);
-	appInfo.pApplicationName = "Apparatus Engine";
+	appInfo.pApplicationName = "Hello Vulkan";
 
 	VkInstanceCreateInfo InstanceInfo {};
 	InstanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -505,34 +505,61 @@ void VK_Renderer::DestroyFramebuffers()
 
 void VK_Renderer::StartSynchronizations()
 {
+	VkSemaphoreCreateInfo semaphore_info = {};
+	semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	vkCreateSemaphore(device_context, &semaphore_info, nullptr, &render);
+	vkCreateSemaphore(device_context, &semaphore_info, nullptr, &present);
 	VkFenceCreateInfo fence_info {};
 	fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	vkCreateFence(device_context, &fence_info, VK_NULL_HANDLE, &swapchain_available);
+	fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+	swapchain_available.resize(swapchain_buffer_count);
+	for (int i = 0; i < swapchain_buffer_count; i++){
+		vkCreateFence(device_context, &fence_info, VK_NULL_HANDLE, &swapchain_available[i]);
+	}
+		
 }
 
 void VK_Renderer::EndSynchronizations()
 {
-	vkDestroyFence(device_context,swapchain_available,nullptr);
+	for (auto fence: swapchain_available) {
+		vkDestroyFence(device_context,fence,nullptr);
+	}
+	vkDestroySemaphore(device_context, render, nullptr);
+	vkDestroySemaphore(device_context, present, nullptr);
+	
 }
 
 //Rendering Functions
-
-void VK_Renderer::BeginRendering(VkSemaphore acquire_semaphore)
+void VK_Renderer::AcquireNextSwapchain()
 {
-	vkAcquireNextImageKHR(device_context, swapchain, UINT64_MAX, acquire_semaphore, swapchain_available, &active_swapchain_id);
-	vkWaitForFences(device_context, 1, &swapchain_available, VK_TRUE, UINT64_MAX);
-	vkResetFences(device_context, 1, &swapchain_available);
-	vkQueueWaitIdle(queue);
+	result = vkAcquireNextImageKHR(device_context, swapchain, UINT64_MAX, present, nullptr, &active_swapchain_id);
+	if (result == VK_SUCCESS){
+		vkWaitForFences(device_context, 1, &swapchain_available[active_swapchain_id], VK_TRUE, UINT64_MAX);
+		vkResetFences(device_context, 1, &swapchain_available[active_swapchain_id]);
+	}
 }
 
-void VK_Renderer::PresentStopRendering(vector<VkSemaphore> wait_semaphores)
+void VK_Renderer::BeginRenderPresent(vector<VkCommandBuffer> command_buffers)
 {
-	VkResult present_result = VkResult::VK_RESULT_MAX_ENUM;
+	VkResult present_result = VK_RESULT_MAX_ENUM;
+	//Submit Command Buffers
+	VkSubmitInfo submit_info {};
+	VkPipelineStageFlags flags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.waitSemaphoreCount = 1;
+	submit_info.pWaitSemaphores = &present;
+	submit_info.pWaitDstStageMask = &flags;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &command_buffers[active_swapchain_id];
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = &render;
 
+	vkQueueSubmit(queue, 1, &submit_info, swapchain_available[active_swapchain_id]);
+	
 	VkPresentInfoKHR present_info {};
 	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	present_info.waitSemaphoreCount = wait_semaphores.size();
-	present_info.pWaitSemaphores = wait_semaphores.data();
+	present_info.waitSemaphoreCount = 1;
+	present_info.pWaitSemaphores = &render;
 	present_info.swapchainCount = 1;
 	present_info.pSwapchains = &swapchain;
 	present_info.pImageIndices = &active_swapchain_id;

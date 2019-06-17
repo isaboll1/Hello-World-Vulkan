@@ -43,20 +43,16 @@ int main(int argc, char** argv) // Equivalent to WinMain, this initializes SDL2
 	pool_create_info.queueFamilyIndex = renderer.family_i;
 	vkCreateCommandPool(renderer.device_context, &pool_create_info, nullptr, &command_pool);
 
-	VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+	vector<VkCommandBuffer> command_buffers;
+	command_buffers.resize(renderer.swapchain_buffers.size());
 	VkCommandBufferAllocateInfo command_buffer_info;
 	command_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	command_buffer_info.pNext = nullptr;
 	command_buffer_info.commandPool = command_pool;
 	command_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	command_buffer_info.commandBufferCount = 1;
-	vkAllocateCommandBuffers(renderer.device_context, &command_buffer_info, &command_buffer);
-	
-	VkSemaphore semaphore = VK_NULL_HANDLE;
-	
-	VkSemaphoreCreateInfo semaphore_create_info {};
-	semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-	vkCreateSemaphore(renderer.device_context, &semaphore_create_info, nullptr, &semaphore);
+	command_buffer_info.commandBufferCount = (uint32_t) command_buffers.size();
+
+	vkAllocateCommandBuffers(renderer.device_context, &command_buffer_info, command_buffers.data());
 
 	//Triangle Creation
 	{
@@ -229,14 +225,14 @@ int main(int argc, char** argv) // Equivalent to WinMain, this initializes SDL2
 			}
 
 		//Begin Rendering Stage
-		renderer.BeginRendering(nullptr);
+		renderer.AcquireNextSwapchain();
 
 		//Record to Command Buffers
 		VkCommandBufferBeginInfo command_buffer_begin_info{};
 		command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-		vkBeginCommandBuffer(command_buffer, &command_buffer_begin_info);
+		vkBeginCommandBuffer(command_buffers[renderer.active_swapchain_id], &command_buffer_begin_info);
 
 		//sending info to the render pass as to how it renders (clear and depth color, the framebuffer that the drawing commands are applied to)
 		VkRect2D render_area{};
@@ -261,36 +257,23 @@ int main(int argc, char** argv) // Equivalent to WinMain, this initializes SDL2
 		render_pass_begin_info.clearValueCount = color_values.size();
 		render_pass_begin_info.pClearValues = color_values.data();
 
-		vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBeginRenderPass(command_buffers[renderer.active_swapchain_id], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 		//at this point drawing commands can begin...
 
-		vkCmdSetViewport(command_buffer, VK_NULL_HANDLE, 1, &renderer.viewport);
-		vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderer.pipeline);
-		vkCmdDraw(command_buffer, 3, 1, 0, 0);
+		vkCmdSetViewport(command_buffers[renderer.active_swapchain_id], VK_NULL_HANDLE, 1, &renderer.viewport);
+		vkCmdBindPipeline(command_buffers[renderer.active_swapchain_id], VK_PIPELINE_BIND_POINT_GRAPHICS, renderer.pipeline);
+		vkCmdDraw(command_buffers[renderer.active_swapchain_id], 3, 1, 0, 0);
 
 		//...up until this point
-		vkCmdEndRenderPass(command_buffer);
-		vkEndCommandBuffer(command_buffer);
+		vkCmdEndRenderPass(command_buffers[renderer.active_swapchain_id]);
+		vkEndCommandBuffer(command_buffers[renderer.active_swapchain_id]);
 
-		//Submit Command Buffers
-		VkSubmitInfo submit_info {};
-		submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submit_info.waitSemaphoreCount = 0;
-		submit_info.pWaitSemaphores = nullptr;
-		submit_info.pWaitDstStageMask = nullptr;
-		submit_info.commandBufferCount = 1;
-		submit_info.pCommandBuffers = &command_buffer;
-		submit_info.signalSemaphoreCount = 1;
-		submit_info.pSignalSemaphores = &semaphore;
-
-		vkQueueSubmit(renderer.queue, 1, &submit_info, nullptr);
-	
+		
 		//End Rendering Stage and Present Swapchain Buffers
-		renderer.PresentStopRendering({ semaphore });
+		renderer.BeginRenderPresent(command_buffers);
 
 	}
 	vkQueueWaitIdle(renderer.queue);
-	vkDestroySemaphore(renderer.device_context, semaphore, nullptr);
 	vkDestroyCommandPool(renderer.device_context, command_pool, nullptr);
 	vkDestroyPipeline(renderer.device_context, renderer.pipeline, nullptr);
 	vkDestroyPipelineLayout(renderer.device_context, renderer.pipeline_layout, nullptr);

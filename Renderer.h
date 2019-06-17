@@ -24,7 +24,9 @@ public:
 	vector<VkImage> swapchain_buffers;
 	vector<VkImageView> swapchain_buffer_view;
 	uint32_t active_swapchain_id = UINT32_MAX;
-	VkFence swapchain_available = VK_NULL_HANDLE;
+	VkSemaphore present = VK_NULL_HANDLE;
+	VkSemaphore render = VK_NULL_HANDLE;
+	vector<VkFence> swapchain_available;
 	VkImage depth_stencil_buffer = VK_NULL_HANDLE;
 	VkDeviceMemory depth_stencil_buffer_memory = VK_NULL_HANDLE;
 	VkImageView depth_stencil_buffer_view = VK_NULL_HANDLE;
@@ -45,8 +47,8 @@ public:
 	~VK_Renderer();
 
 	//Rendering Functions (you can do all this stuff manually in your game loop using the public variables available)
-	void BeginRendering(VkSemaphore acquire_semaphore);
-	void PresentStopRendering(vector<VkSemaphore> wait_semaphores);
+	void AcquireNextSwapchain();
+	void BeginRenderPresent(vector<VkCommandBuffer> command_buffers);
 	//~Rendering Functions
 
 private:
@@ -60,7 +62,7 @@ private:
 	VkSurfaceCapabilitiesKHR surface_caps {};
 	VkFormat depth_buffer_format = VK_FORMAT_UNDEFINED;
 	bool stencil_support = false;
-	bool present_mode_set = false;
+	bool present_mode_set = true;
 	VkSurfaceFormatKHR surface_format {};
 	VkPhysicalDevice device;
 	VkPhysicalDeviceProperties device_properties {};

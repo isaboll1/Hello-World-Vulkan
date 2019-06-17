@@ -4,3 +4,8 @@ main
 .vscode/launch.json
 HVD
 HV
+.vscode/ipch/880f08537528f093/main.ipch
+.vscode/ipch/880f08537528f093/mmap_address.bin
+.vscode/ipch/f97a87b5961f4da9/Renderer.ipch
+.vscode/ipch/f97a87b5961f4da9/mmap_address.bin
+bin/HelloVulkan(debug).x86_64
