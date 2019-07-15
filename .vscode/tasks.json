@@ -1,0 +1,49 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build (debug)",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-g",
+                "-D VK_DEBUG",
+                "-Wall",
+                "-Wextra",
+                "-Wdisabled-optimization",
+                "${workspaceFolder}/main.cpp",
+                "${workspaceFolder}/Renderer.cpp",
+                "-o",
+				"${workspaceFolder}/bin/HelloVulkan(debug).x86_64",
+				"-lSDL2",
+				"-lvulkan"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "build",
+            "type": "shell",
+            "command": "g++",
+            "args": [
+                "-O3",
+                "-g",
+                "${workspaceRoot}/main.cpp",
+                "${workspaceRoot}/Renderer.cpp",
+				"-lSDL2",
+                "-lvulkan",
+                "-o",
+				"${workspaceFolder}/bin/HelloVulkan.x86_64",
+                
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "problemMatcher": "$gcc"
+        }
+    ]
+}
